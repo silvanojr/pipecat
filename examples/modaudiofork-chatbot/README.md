@@ -21,7 +21,6 @@ This project is a FastAPI-based chatbot that integrates with FreeSwitch via mod_
 
 - Python 3.10
 - Docker (for containerized deployment)
-- ngrok (for tunneling)
 - FreeSwitch with the latest version of mod_audio_fork for bidirectional audio streaming
 
 ## Installation
@@ -32,16 +31,19 @@ This project is a FastAPI-based chatbot that integrates with FreeSwitch via mod_
     source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
     ```
 
-2. **Install dependencies**:
+2. **Install the lib**:
+    ```sh
+    pip install path_to_this_repo
+    ```
+
+3. **Install dependencies**:
     ```sh
     pip install -r requirements.txt
     ```
 
-3. **Create .env**:
+4. **Create .env**:
     create .env based on env.example
 
-4. **Install ngrok**:
-    Follow the instructions on the [ngrok website](https://ngrok.com/download) to download and install ngrok.
 
 ## Running the Application
 
@@ -52,11 +54,6 @@ This project is a FastAPI-based chatbot that integrates with FreeSwitch via mod_
     python server.py
     ```
 
-2. **Start ngrok**:
-    In a new terminal, start ngrok to tunnel the local server:
-    ```sh
-    ngrok http 8765
-    ```
 ### Using Docker
 
 1. **Build the Docker image**:

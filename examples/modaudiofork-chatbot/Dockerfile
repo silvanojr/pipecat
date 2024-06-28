@@ -2,7 +2,7 @@
 FROM python:3.10-bullseye
 
 # Set the working directory in the container
-WORKDIR /modforkaudio-chatbot
+WORKDIR /modaudiofork-chatbot
 
 # Copy the requirements file into the container
 COPY requirements.txt .
