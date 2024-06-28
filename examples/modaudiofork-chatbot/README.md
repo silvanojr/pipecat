@@ -71,4 +71,4 @@ This project is a FastAPI-based chatbot that integrates with FreeSwitch via mod_
     ```
 ## Usage
 
-To start a call, simply make a call to your Twilio phone number. The webhook URL will direct the call to your FastAPI application, which will handle it accordingly.
+TODO
