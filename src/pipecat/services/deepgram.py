@@ -183,13 +183,16 @@ class DeepgramSTTService(AIService):
             except asyncio.CancelledError:
                 break
 
-    async def _on_message(self, *args, **kwargs):
+    async def _on_message(self, theresult, **kwargs):
         if self._is_interrupted_event.is_set():
             return
+
+        logger.debug(f"{self}: Got Message {theresult}")
 
         result = kwargs["result"]
         is_final = result.is_final
         transcript = result.channel.alternatives[0].transcript
+        logger.debug(f"{self}: Transcript = {transcript} and is final = {is_final}")
         if len(transcript) > 0:
             if is_final:
                 await self._push_queue.put((TranscriptionFrame(transcript, "", int(time.time_ns() / 1000000)), FrameDirection.DOWNSTREAM))
