@@ -7,7 +7,6 @@ This project is a FastAPI-based chatbot that integrates with FreeSwitch via mod_
 - [Features](#features)
 - [Requirements](#requirements)
 - [Installation](#installation)
-- [Configure Twilio URLs](#configure-twilio-urls)
 - [Running the Application](#running-the-application)
 - [Usage](#usage)
 
