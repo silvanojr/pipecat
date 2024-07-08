@@ -5,6 +5,90 @@ All notable changes to **pipecat** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.36] - 2024-07-02
+
+### Added
+
+- Added `GladiaSTTService`.
+  See https://docs.gladia.io/chapters/speech-to-text-api/pages/live-speech-recognition
+
+- Added `XTTSService`. This is a local Text-To-Speech service.
+  See https://github.com/coqui-ai/TTS
+
+- Added `UserIdleProcessor`. This processor can be used to wait for any
+  interaction with the user. If the user doesn't say anything within a given
+  timeout a provided callback is called.
+
+- Added `IdleFrameProcessor`. This processor can be used to wait for frames
+  within a given timeout. If no frame is received within the timeout a provided
+  callback is called.
+
+- Added new frame `BotSpeakingFrame`. This frame will be continuously pushed
+  upstream while the bot is talking.
+
+- It is now possible to specify a Silero VAD version when using `SileroVADAnalyzer`
+  or `SileroVAD`.
+
+- Added `AysncFrameProcessor` and `AsyncAIService`.  Some services like
+  `DeepgramSTTService` need to process things asynchronously. For example, audio
+  is sent to Deepgram but transcriptions are not returned immediately. In these
+  cases we still require all frames (except system frames) to be pushed
+  downstream from a single task. That's what `AsyncFrameProcessor` is for. It
+  creates a task and all frames should be pushed from that task. So, whenever a
+  new Deepgram transcription is ready that transcription will also be pushed
+  from this internal task.
+
+- The `MetricsFrame` now includes processing metrics if metrics are enabled. The
+  processing metrics indicate the time a processor needs to generate all its
+  output. Note that not all processors generate these kind of metrics.
+
+### Changed
+
+- `WhisperSTTService` model can now also be a string.
+
+- Added missing * keyword separators in services.
+
+### Fixed
+
+- `WebsocketServerTransport` doesn't try to send frames anymore if serializers
+  returns `None`.
+
+- Fixed an issue where exceptions that occurred inside frame processors were
+  being swallowed and not displayed.
+
+- Fixed an issue in `FastAPIWebsocketTransport` where it would still try to send
+  data to the websocket after being closed.
+
+### Other
+
+- Added Fly.io deployment example in `examples/deployment/flyio-example`.
+
+- Added new `17-detect-user-idle.py` example that shows how to use the new
+  `UserIdleProcessor`.
+
+## [0.0.35] - 2024-06-28
+
+### Changed
+
+- `FastAPIWebsocketParams` now require a serializer.
+
+- `TwilioFrameSerializer` now requires a `streamSid`.
+
+### Fixed
+
+- Silero VAD number of frames needs to be 512 for 16000 sample rate or 256 for
+  8000 sample rate.
+
+## [0.0.34] - 2024-06-25
+
+### Fixed
+
+- Fixed an issue with asynchronous STT services (Deepgram and Azure) that could
+  interruptions to ignore transcriptions.
+
+- Fixed an issue introduced in 0.0.33 that would cause the LLM to generate
+  shorter output.
+
 ## [0.0.33] - 2024-06-25
 
 ### Changed

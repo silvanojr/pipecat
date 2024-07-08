@@ -5,7 +5,6 @@
 #
 
 import aiohttp
-import asyncio
 import time
 
 from typing import AsyncGenerator
@@ -18,12 +17,10 @@ from pipecat.frames.frames import (
     Frame,
     InterimTranscriptionFrame,
     StartFrame,
-    StartInterruptionFrame,
-    StopInterruptionFrame,
     SystemFrame,
     TranscriptionFrame)
 from pipecat.processors.frame_processor import FrameDirection
-from pipecat.services.ai_services import AIService, TTSService
+from pipecat.services.ai_services import AsyncAIService, TTSService
 
 from loguru import logger
 
@@ -92,11 +89,12 @@ class DeepgramTTSService(TTSService):
                     frame = AudioRawFrame(audio=data, sample_rate=16000, num_channels=1)
                     yield frame
         except Exception as e:
-            logger.error(f"{self} exception: {e}")
+            logger.exception(f"{self} exception: {e}")
 
 
-class DeepgramSTTService(AIService):
+class DeepgramSTTService(AsyncAIService):
     def __init__(self,
+                 *,
                  api_key: str,
                  url: str = "",
                  live_options: LiveOptions = LiveOptions(
@@ -118,23 +116,15 @@ class DeepgramSTTService(AIService):
         self._connection = self._client.listen.asynclive.v("1")
         self._connection.on(LiveTranscriptionEvents.Transcript, self._on_message)
 
-        # This event will be used to ignore out-of-band transcriptions while we
-        # are itnerrupted.
-        self._is_interrupted_event = asyncio.Event()
-
-        self._create_push_task()
-
     async def process_frame(self, frame: Frame, direction: FrameDirection):
         await super().process_frame(frame, direction)
 
-        if isinstance(frame, StartInterruptionFrame) or isinstance(frame, StopInterruptionFrame):
-            await self._handle_interruptions(frame)
-        elif isinstance(frame, SystemFrame):
+        if isinstance(frame, SystemFrame):
             await self.push_frame(frame, direction)
         elif isinstance(frame, AudioRawFrame):
             await self._connection.send(frame.audio)
         else:
-            await self._push_queue.put((frame, direction))
+            await self.queue_frame(frame, direction)
 
     async def start(self, frame: StartFrame):
         if await self._connection.start(self._live_options):
@@ -144,57 +134,17 @@ class DeepgramSTTService(AIService):
 
     async def stop(self, frame: EndFrame):
         await self._connection.finish()
-        await self._push_queue.put((frame, FrameDirection.DOWNSTREAM))
-        await self._push_frame_task
 
     async def cancel(self, frame: CancelFrame):
         await self._connection.finish()
-        self._push_frame_task.cancel()
-        await self._push_frame_task
 
-    async def _handle_interruptions(self, frame: Frame):
-        if isinstance(frame, StartInterruptionFrame):
-            # Indicate we are interrupted, we should ignore any out-of-band
-            # transcriptions.
-            self._is_interrupted_event.set()
-            # Cancel the task. This will stop pushing frames downstream.
-            self._push_frame_task.cancel()
-            await self._push_frame_task
-            # Push an out-of-band frame (i.e. not using the ordered push
-            # frame task).
-            await self.push_frame(frame)
-            # Create a new queue and task.
-            self._create_push_task()
-        elif isinstance(frame, StopInterruptionFrame):
-            # We should now be able to receive transcriptions again.
-            self._is_interrupted_event.clear()
-
-    def _create_push_task(self):
-        self._push_queue = asyncio.Queue()
-        self._push_frame_task = self.get_event_loop().create_task(self._push_frame_task_handler())
-
-    async def _push_frame_task_handler(self):
-        running = True
-        while running:
-            try:
-                (frame, direction) = await self._push_queue.get()
-                await self.push_frame(frame, direction)
-                running = not isinstance(frame, EndFrame)
-            except asyncio.CancelledError:
-                break
-
-    async def _on_message(self, theresult, **kwargs):
-        if self._is_interrupted_event.is_set():
-            return
-
-        logger.debug(f"{self}: Got Message {theresult}")
-
+    async def _on_message(self, *args, **kwargs):
         result = kwargs["result"]
         is_final = result.is_final
         transcript = result.channel.alternatives[0].transcript
         logger.debug(f"{self}: Transcript = {transcript} and is final = {is_final}")
         if len(transcript) > 0:
             if is_final:
-                await self._push_queue.put((TranscriptionFrame(transcript, "", int(time.time_ns() / 1000000)), FrameDirection.DOWNSTREAM))
+                await self.queue_frame(TranscriptionFrame(transcript, "", int(time.time_ns() / 1000000)))
             else:
-                await self._push_queue.put((InterimTranscriptionFrame(transcript, "", int(time.time_ns() / 1000000)), FrameDirection.DOWNSTREAM))
+                await self.queue_frame(InterimTranscriptionFrame(transcript, "", int(time.time_ns() / 1000000)))

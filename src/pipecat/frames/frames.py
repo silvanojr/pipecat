@@ -241,11 +241,22 @@ class StopInterruptionFrame(SystemFrame):
 
 
 @dataclass
+class BotSpeakingFrame(SystemFrame):
+    """Emitted by transport outputs while the bot is still speaking. This can be
+    used, for example, to detect when a user is idle. That is, while the bot is
+    speaking we don't want to trigger any user idle timeout since the user might
+    be listening.
+
+    """
+    pass
+
+
+@dataclass
 class MetricsFrame(SystemFrame):
     """Emitted by processor that can compute metrics like latencies.
     """
-    ttfb: Mapping[str, float]
-
+    ttfb: List[Mapping[str, Any]] | None = None
+    processing: List[Mapping[str, Any]] | None = None
 
 #
 # Control frames

@@ -42,7 +42,7 @@ class GoogleLLMService(LLMService):
     franca for all LLM services, so that it is easy to switch between different LLMs.
     """
 
-    def __init__(self, api_key: str, model: str = "gemini-1.5-flash-latest", **kwargs):
+    def __init__(self, *, api_key: str, model: str = "gemini-1.5-flash-latest", **kwargs):
         super().__init__(**kwargs)
         gai.configure(api_key=api_key)
         self._client = gai.GenerativeModel(model)
@@ -104,10 +104,10 @@ class GoogleLLMService(LLMService):
                         logger.debug(
                             f"LLM refused to generate content for safety reasons - {messages}.")
                     else:
-                        logger.error(f"{self} error: {e}")
+                        logger.exception(f"{self} error: {e}")
 
         except Exception as e:
-            logger.error(f"{self} exception: {e}")
+            logger.exception(f"{self} exception: {e}")
         finally:
             await self.push_frame(LLMFullResponseEndFrame())
 

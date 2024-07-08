@@ -24,6 +24,7 @@ from pipecat.frames.frames import (
     TextFrame,
     VisionImageRawFrame,
 )
+from pipecat.processors.async_frame_processor import AsyncFrameProcessor
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 from pipecat.utils.audio import calculate_audio_volume
 from pipecat.utils.utils import exp_smoothing
@@ -60,6 +61,30 @@ class AIService(FrameProcessor):
                 await self.push_frame(f)
 
 
+class AsyncAIService(AsyncFrameProcessor):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    async def start(self, frame: StartFrame):
+        pass
+
+    async def stop(self, frame: EndFrame):
+        pass
+
+    async def cancel(self, frame: CancelFrame):
+        pass
+
+    async def process_frame(self, frame: Frame, direction: FrameDirection):
+        await super().process_frame(frame, direction)
+
+        if isinstance(frame, StartFrame):
+            await self.start(frame)
+        elif isinstance(frame, CancelFrame):
+            await self.cancel(frame)
+        elif isinstance(frame, EndFrame):
+            await self.stop(frame)
+
+
 class LLMService(AIService):
     """This class is a no-op but serves as a base class for LLM services."""
 
@@ -93,7 +118,7 @@ class LLMService(AIService):
 
 
 class TTSService(AIService):
-    def __init__(self, aggregate_sentences: bool = True, **kwargs):
+    def __init__(self, *, aggregate_sentences: bool = True, **kwargs):
         super().__init__(**kwargs)
         self._aggregate_sentences: bool = aggregate_sentences
         self._current_sentence: str = ""
@@ -127,7 +152,9 @@ class TTSService(AIService):
             return
 
         await self.push_frame(TTSStartedFrame())
+        await self.start_processing_metrics()
         await self.process_generator(self.run_tts(text))
+        await self.stop_processing_metrics()
         await self.push_frame(TTSStoppedFrame())
         # We send the original text after the audio. This way, if we are
         # interrupted, the text is not added to the assistant context.
@@ -153,6 +180,7 @@ class STTService(AIService):
     """STTService is a base class for speech-to-text services."""
 
     def __init__(self,
+                 *,
                  min_volume: float = 0.6,
                  max_silence_secs: float = 0.3,
                  max_buffer_secs: float = 1.5,
@@ -208,7 +236,9 @@ class STTService(AIService):
             self._silence_num_frames = 0
             self._wave.close()
             self._content.seek(0)
+            await self.start_processing_metrics()
             await self.process_generator(self.run_stt(self._content.read()))
+            await self.stop_processing_metrics()
             (self._content, self._wave) = self._new_wave()
 
     async def process_frame(self, frame: Frame, direction: FrameDirection):
@@ -241,7 +271,9 @@ class ImageGenService(AIService):
 
         if isinstance(frame, TextFrame):
             await self.push_frame(frame, direction)
+            await self.start_processing_metrics()
             await self.process_generator(self.run_image_gen(frame.text))
+            await self.stop_processing_metrics()
         else:
             await self.push_frame(frame, direction)
 
@@ -261,6 +293,8 @@ class VisionService(AIService):
         await super().process_frame(frame, direction)
 
         if isinstance(frame, VisionImageRawFrame):
+            await self.start_processing_metrics()
             await self.process_generator(self.run_vision(frame))
+            await self.stop_processing_metrics()
         else:
             await self.push_frame(frame, direction)

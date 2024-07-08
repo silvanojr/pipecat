@@ -12,7 +12,6 @@ import wave
 from typing import Awaitable, Callable
 from pydantic.main import BaseModel
 
-from pipecat.serializers.base_serializer import FrameSerializer
 from pipecat.frames.frames import AudioRawFrame, StartFrame
 from pipecat.processors.frame_processor import FrameProcessor
 from pipecat.serializers.base_serializer import FrameSerializer
@@ -129,7 +128,7 @@ class FastAPIWebsocketTransport(BaseTransport):
     def __init__(
             self,
             websocket: WebSocket,
-            params: FastAPIWebsocketParams = FastAPIWebsocketParams(),
+            params: FastAPIWebsocketParams,
             input_name: str | None = None,
             output_name: str | None = None,
             loop: asyncio.AbstractEventLoop | None = None):

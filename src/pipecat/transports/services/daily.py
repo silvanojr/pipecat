@@ -9,7 +9,7 @@ import asyncio
 import time
 
 from dataclasses import dataclass
-from typing import Any, Awaitable, Callable, Mapping
+from typing import Any, Awaitable, Callable, Mapping, Optional
 from concurrent.futures import ThreadPoolExecutor
 
 from daily import (
@@ -59,8 +59,8 @@ class DailyTransportMessageFrame(TransportMessageFrame):
 
 class WebRTCVADAnalyzer(VADAnalyzer):
 
-    def __init__(self, sample_rate=16000, num_channels=1, params: VADParams = VADParams()):
-        super().__init__(sample_rate, num_channels, params)
+    def __init__(self, *, sample_rate=16000, num_channels=1, params: VADParams = VADParams()):
+        super().__init__(sample_rate=sample_rate, num_channels=num_channels, params=params)
 
         self._webrtc_vad = Daily.create_native_vad(
             reset_period_ms=VAD_RESET_PERIOD_MS,
@@ -101,7 +101,7 @@ class DailyTranscriptionSettings(BaseModel):
 class DailyParams(TransportParams):
     api_url: str = "https://api.daily.co/v1"
     api_key: str = ""
-    dialin_settings: DailyDialinSettings | None = None
+    dialin_settings: Optional[DailyDialinSettings] = None
     transcription_enabled: bool = False
     transcription_settings: DailyTranscriptionSettings = DailyTranscriptionSettings()
 
@@ -199,6 +199,9 @@ class DailyTransportClient(EventHandler):
         self._callbacks = callbacks
 
     async def send_message(self, frame: DailyTransportMessageFrame):
+        if not self._client:
+            return
+
         future = self._loop.create_future()
         self._client.send_app_message(
             frame.message,
@@ -265,7 +268,7 @@ class DailyTransportClient(EventHandler):
                     logger.info(
                         f"Enabling transcription with settings {self._params.transcription_settings}")
                     self._client.start_transcription(
-                        self._params.transcription_settings.model_dump())
+                        self._params.transcription_settings.model_dump(exclude_none=True))
 
                 await self._callbacks.on_joined(data["participants"]["local"])
             else:
@@ -656,11 +659,11 @@ class DailyOutputTransport(BaseOutputTransport):
         await self._client.send_message(frame)
 
     async def send_metrics(self, frame: MetricsFrame):
-        ttfb = [{"name": n, "time": t} for n, t in frame.ttfb.items()]
         message = DailyTransportMessageFrame(message={
             "type": "pipecat-metrics",
             "metrics": {
-                "ttfb": ttfb
+                "ttfb": frame.ttfb or [],
+                "processing": frame.processing or [],
             },
         })
         await self._client.send_message(message)
@@ -835,8 +838,8 @@ class DailyTransport(BaseTransport):
                     logger.debug("Event dialin-ready was handled successfully")
             except asyncio.TimeoutError:
                 logger.error(f"Timeout handling dialin-ready event ({url})")
-            except BaseException as e:
-                logger.error(f"Error handling dialin-ready event ({url}): {e}")
+            except Exception as e:
+                logger.exception(f"Error handling dialin-ready event ({url}): {e}")
 
     async def _on_dialin_ready(self, sip_endpoint):
         if self._params.dialin_settings:

@@ -41,6 +41,7 @@ class AnthropicLLMService(LLMService):
 
     def __init__(
             self,
+            *,
             api_key: str,
             model: str = "claude-3-opus-20240229",
             max_tokens: int = 1024):
@@ -122,7 +123,7 @@ class AnthropicLLMService(LLMService):
                     await self.push_frame(LLMResponseEndFrame())
 
         except Exception as e:
-            logger.error(f"{self} exception: {e}")
+            logger.exception(f"{self} exception: {e}")
         finally:
             await self.push_frame(LLMFullResponseEndFrame())
 
