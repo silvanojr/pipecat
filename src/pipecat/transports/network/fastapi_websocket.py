@@ -34,7 +34,7 @@ except ModuleNotFoundError as e:
 
 class FastAPIWebsocketParams(TransportParams):
     add_wav_header: bool = False
-    audio_frame_size: int = 6400  # 200ms
+    audio_frame_size: int = 640  # 20ms
     serializer: FrameSerializer = None
 
 
