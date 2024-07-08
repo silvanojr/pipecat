@@ -22,7 +22,7 @@ from pipecat.transports.base_transport import BaseTransport, TransportParams
 from loguru import logger
 
 try:
-    from fastapi import WebSocket
+    from fastapi import WebSocket, WebSocketDisconnect
     from starlette.websockets import WebSocketState
 except ModuleNotFoundError as e:
     logger.error(f"Exception: {e}")
@@ -68,16 +68,19 @@ class FastAPIWebsocketInputTransport(BaseInputTransport):
 
     async def _receive_messages(self):
         logger.debug("Ready to receive messages")
-        async for message in self._websocket.iter_bytes():
-            frame = self._params.serializer.deserialize(message)
+        try: 
+            while True:
+                message = await self._websocket.receive()
+                frame = self._params.serializer.deserialize(message)
 
-            if not frame:
-                continue
+                if not frame:
+                    continue
 
-            if isinstance(frame, AudioRawFrame):
-                await self.push_audio_frame(frame)
-
-        await self._callbacks.on_client_disconnected(self._websocket)
+                if isinstance(frame, AudioRawFrame):
+                    await self.push_audio_frame(frame)
+        except WebSocketDisconnect:
+            logger.debug("Client disconnected")
+            await self._callbacks.on_client_disconnected(self._websocket)
 
 
 class FastAPIWebsocketOutputTransport(BaseOutputTransport):
