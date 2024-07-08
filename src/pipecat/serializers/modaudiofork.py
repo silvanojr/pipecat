@@ -7,9 +7,6 @@
 from pipecat.frames.frames import AudioRawFrame, Frame
 from pipecat.serializers.base_serializer import FrameSerializer
 
-import typing
-from loguru import logger
-
 
 class ModAudioForkFrameSerializer(FrameSerializer):
     SERIALIZABLE_TYPES = {
@@ -30,14 +27,9 @@ class ModAudioForkFrameSerializer(FrameSerializer):
         else:
             return None
 
-    def deserialize(self, data: str | bytes | dict) -> Frame | None:
+    def deserialize(self, data: str | bytes) -> Frame | None:
 
-        if "text" in data:
-            text_message = typing.cast(str, data["text"])
-            logger.debug(text_message)
-            return None
-        elif "bytes" in data:
-            audio_bytes = typing.cast(bytes, data["bytes"])
-            return AudioRawFrame(audio=audio_bytes, num_channels=1, sample_rate=16000)
+        if type(data).__name__ == 'bytes':
+            return AudioRawFrame(audio=data, num_channels=1, sample_rate=16000)
         else:
             return None
