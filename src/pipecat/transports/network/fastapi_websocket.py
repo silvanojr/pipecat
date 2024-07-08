@@ -114,11 +114,12 @@ class FastAPIWebsocketOutputTransport(BaseOutputTransport):
                     num_channels=frame.num_channels)
                 frame = wav_frame
 
-            payload = self._params.serializer.serialize(frame)
-            if type(payload).__name__ == 'bytes':
-                await self._websocket.send_bytes(payload)
-            else:
-                await self._websocket.send_text(payload)
+            if self._websocket.client_state == WebSocketState.CONNECTED:
+                payload = self._params.serializer.serialize(frame)
+                if type(payload).__name__ == 'bytes':
+                    await self._websocket.send_bytes(payload)
+                else:
+                    await self._websocket.send_text(payload)
 
             self._audio_buffer = self._audio_buffer[self._params.audio_frame_size:]
 
